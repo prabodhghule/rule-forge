@@ -1,5 +1,83 @@
 [
   {
+    "issue": 2,
+    "issue_url": "https://github.com/prabodhghule/rule-forge/issues/2",
+    "title": "Disbursal API Velocity & Bypassed Workflow Rule:",
+    "requested_by": "yatindra123y",
+    "request": {
+      "language": "XQL (Cortex XSIAM / XDR)",
+      "data_source": "akamai_api_security_raw",
+      "requirement": "Monitors payment/disbursal endpoints for >15 invocations in 5 minutes or requests carrying dummy reference numbers.",
+      "logic": "Monitors payment/disbursal endpoints for >15 invocations in 5 minutes or requests carrying dummy reference numbers.",
+      "mitre": "",
+      "severity": "",
+      "samples": "[Removed from the public page: the sample event contained customer hostnames, IPs and an internal dashboard link. See the GitHub issue.]"
+    },
+    "created_at": "2026-11-20T07:29:05+00:00",
+    "updated_at": "2026-11-20T07:29:05+00:00",
+    "revision": 1,
+    "model": "Claude (scheduled task)",
+    "last_feedback": "",
+    "rule": {
+      "rule_name": "Akamai API Security: disbursal endpoint velocity or dummy reference value",
+      "summary": "Uses Akamai API Security findings to flag a source IP that hits payment or disbursal endpoints more than 15 times in 5 minutes, or that sends a reference-type parameter with a placeholder value such as 000000, 123456, test or dummy.",
+      "query_language": "XQL",
+      "query": "config case_sensitive = false\n| dataset = akamai_api_security_raw\n| alter finding_type = json_extract_scalar(to_json_string(event), \"$.typeName\"),\n        finding_desc = json_extract_scalar(to_json_string(event), \"$.description\"),\n        evidence = json_extract_array(to_json_string(event), \"$.evidence\")\n| arrayexpand evidence\n| alter req_host = json_extract_scalar(evidence, \"$.host\"),\n        req_path = json_extract_scalar(evidence, \"$.path\"),\n        req_method = json_extract_scalar(evidence, \"$.method\"),\n        req_status = json_extract_scalar(evidence, \"$.statusCode\"),\n        req_src_ip = json_extract_scalar(evidence, \"$.sourceIp\")\n| filter req_path ~= \"(?i)/(disburs|payout|payment|refund|transfer|settle)\"\n| alter param_field = arrayindex(regextract(finding_desc, \"Field:\\\\s*([^\\\\n]+)\"), 0),\n        param_value = arrayindex(regextract(finding_desc, \"Value:\\\\s*([^\\\\n]+)\"), 0)\n| alter is_dummy_ref = if(param_field ~= \"(?i)(ref|utr|txn|transaction|reference)\" and param_value ~= \"(?i)^\\\\s*(0+|1+|9+|1234[0-9]*|test.*|dummy.*|x{3,}|na|null|none)\\\\s*$\", 1, 0)\n| bin _time span = 5m\n| comp count() as call_count, sum(is_dummy_ref) as dummy_ref_count, values(req_path) as paths, values(req_host) as hosts, values(finding_type) as finding_types by _time, req_src_ip\n| filter call_count > 15 or dummy_ref_count > 0\n| alter trigger_reason = if(dummy_ref_count > 0 and call_count > 15, \"velocity + dummy reference\", if(dummy_ref_count > 0, \"dummy reference value\", \"velocity > 15 calls / 5 min\"))\n| fields _time, req_src_ip, call_count, dummy_ref_count, trigger_reason, paths, hosts, finding_types\n| sort desc call_count",
+      "logic_explanation": [
+        "Reads Akamai API Security findings from akamai_api_security_raw. Each event is a finding whose nested 'event' object holds the finding type, a description, and an 'evidence' array of the requests that triggered it.",
+        "Extracts the evidence array with json_extract_array and expands it with arrayexpand, so each evidence request (host, path, method, status, source IP) becomes its own row.",
+        "Keeps only requests to payment or disbursal paths (/disburs, /payout, /payment, /refund, /transfer, /settle).",
+        "Pulls the parameter name and value out of the finding description ('Field: ... Value: ...') with regextract, and marks the row as a dummy reference when a reference-type field (ref, utr, txn, transaction, reference) carries a placeholder value.",
+        "Buckets rows into 5-minute windows and counts requests and dummy-reference hits per source IP.",
+        "Fires when a source IP has more than 15 disbursal requests in a window or any dummy reference value, and labels which condition triggered."
+      ],
+      "assumptions": [
+        "Important: akamai_api_security_raw holds API Security findings, not every API request. The evidence array only lists the requests attached to each finding, so call_count is a lower bound and true '15 calls in 5 minutes' velocity can be missed. For exact velocity, run the same logic on Akamai's full traffic logs (for example the Akamai WAF / SIEM or DataStream dataset) if you ingest them.",
+        "Assumes the nested 'event' column is stored as JSON. to_json_string is used so the query works whether XSIAM stored it as an object or a string.",
+        "Bucketing uses the finding's _time, not the evidence requestTs. If findings are reported with a delay, switch to the parsed evidence timestamp.",
+        "Dummy values are detected only when Akamai reports them in the finding description (as in parameter-out-of-range findings). Values that Akamai does not flag are not visible in this dataset.",
+        "The disbursal path keywords and reference field names are guesses. Replace them with the application's real routes and parameter names."
+      ],
+      "false_positives": [
+        "Mobile clients behind carrier-grade NAT (many users on one IPv6/IPv4 address) can inflate per-IP counts.",
+        "Out-of-range findings where a value of 0 or 1 is legitimate for that field.",
+        "Internal testing or QA traffic against production APIs."
+      ],
+      "tuning": [
+        "Restrict to the relevant hosts with: filter req_host in (\"<your API host>\").",
+        "Exclude known partner and internal IP ranges with incidr() or a lookup dataset.",
+        "Raise the threshold or filter on finding_type if particular Akamai finding types are noisy.",
+        "Add organisation-specific dummy values (for example REF0000) to the regex."
+      ],
+      "mitre": [
+        {
+          "id": "T1657",
+          "name": "Financial Theft"
+        },
+        {
+          "id": "T1190",
+          "name": "Exploit Public-Facing Application"
+        },
+        {
+          "id": "T1595",
+          "name": "Active Scanning"
+        }
+      ],
+      "severity": "High",
+      "testing": "First run the query without the final 'filter call_count > 15 or dummy_ref_count > 0' over the last 24 hours to confirm that the evidence fields extract correctly (non-empty req_path and req_src_ip). Then lower the threshold temporarily (for example call_count > 1) to see sample hits. To deploy, save it as a correlation rule that runs every 5 minutes over a 5-minute time frame, with suppression on req_src_ip.",
+      "variants": [
+        {
+          "name": "Field check: confirm the evidence fields parse (run first, last 24 hours)",
+          "query": "dataset = akamai_api_security_raw\n| alter evidence = json_extract_array(to_json_string(event), \"$.evidence\")\n| arrayexpand evidence\n| alter req_path = json_extract_scalar(evidence, \"$.path\"), req_src_ip = json_extract_scalar(evidence, \"$.sourceIp\"), finding_type = json_extract_scalar(to_json_string(event), \"$.typeName\")\n| fields _time, finding_type, req_path, req_src_ip\n| limit 50"
+        },
+        {
+          "name": "Hunting: busiest sources on disbursal paths, last 7 days",
+          "query": "dataset = akamai_api_security_raw\n| alter evidence = json_extract_array(to_json_string(event), \"$.evidence\")\n| arrayexpand evidence\n| alter req_path = json_extract_scalar(evidence, \"$.path\"), req_src_ip = json_extract_scalar(evidence, \"$.sourceIp\")\n| filter req_path ~= \"(?i)/(disburs|payout|payment|refund|transfer|settle)\"\n| comp count() as hits, values(req_path) as paths by req_src_ip\n| sort desc hits\n| limit 50"
+        }
+      ]
+    }
+  },
+  {
     "issue": 1,
     "issue_url": "https://github.com/prabodhghule/rule-forge/issues/1",
     "title": "Disbursal API Velocity & Bypassed Workflow Rule",
