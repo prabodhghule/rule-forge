@@ -67,5 +67,5 @@ body:
     id: samples
     attributes:
       label: Sample logs or field names (optional)
-      description: Paste a sanitized sample event so the query uses your real field names. Remove secrets and personal data.
+      description: "Paste a sample event so the query uses your real field names. This repo is public, so remove client names, hostnames, URLs, IPs and account numbers (they are masked automatically, but do not rely on it)."
       render: json

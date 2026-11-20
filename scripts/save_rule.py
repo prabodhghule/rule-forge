@@ -21,6 +21,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from build_index import build_index  # noqa: E402
 from generate_rule import RULE_TOOL, comment_markdown  # noqa: E402
+from redact import redact, redact_obj  # noqa: E402
+
+# Data kinds that must never appear in a published rule (IPs only warn: queries may use generic ranges).
+BLOCKING = {"url", "email", "host", "uuid", "token", "secret", "phone", "card", "aadhaar", "pan", "client"}
 
 REQUIRED = RULE_TOOL["input_schema"]["required"]
 SEVERITIES = RULE_TOOL["input_schema"]["properties"]["severity"]["enum"]
@@ -33,10 +37,28 @@ def main() -> int:
     ap.add_argument("--post", action="store_true", help="comment on and label the issue with gh")
     ap.add_argument("--repo", default="prabodhghule/rule-forge")
     ap.add_argument("--model", default="Claude (scheduled task)")
+    ap.add_argument("--term", action="append", default=[], help="client/company name to mask (not stored)")
     a = ap.parse_args()
 
     work = json.loads(pathlib.Path(a.work).read_text(encoding="utf-8"))
     rule = json.loads(pathlib.Path(a.rule).read_text(encoding="utf-8"))
+
+    # 1. Mask sensitive data in everything we store from the request.
+    found: dict = {}
+    work["title"] = redact_obj(work.get("title", ""), a.term, found)
+    work["request"] = redact_obj(work.get("request", {}), a.term, found)
+    work["feedback"] = redact_obj(work.get("feedback", ""), a.term, found)
+    if found:
+        print(f"Masked in stored request: {found}")
+
+    # 2. The rule itself must not carry client data.
+    check: dict = {}
+    redact_obj(rule, a.term, check)
+    blocked = {k: v for k, v in check.items() if k in BLOCKING}
+    if blocked:
+        sys.exit(f"rule.json contains sensitive data {blocked}. Remove client names, hosts, URLs, IDs and tokens, then retry.")
+    if check:
+        print(f"Warning: rule.json contains {check}. Make sure these are generic values, not client data.")
 
     missing = [k for k in REQUIRED if not rule.get(k)]
     if missing:

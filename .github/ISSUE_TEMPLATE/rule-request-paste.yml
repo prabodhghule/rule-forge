@@ -7,6 +7,8 @@ body:
     attributes:
       value: |
         **The website already copied your request.** Click in the box below, press **Ctrl+V** (Mac: **Cmd+V**), then click **Create**.
+
+        ⚠️ This repository is public. Remove client names, hostnames, URLs, IPs and account numbers from sample logs. Sensitive values are masked automatically, but it is safer not to paste them.
   - type: textarea
     id: request
     attributes:
