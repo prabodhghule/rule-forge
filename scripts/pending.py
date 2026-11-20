@@ -17,7 +17,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from generate_rule import parse_issue_body  # noqa: E402
 
-ALLOWED = {a.strip().upper() for a in os.environ.get("ALLOWED_ASSOCIATIONS", "OWNER,MEMBER,COLLABORATOR").split(",")}
+ALLOWED = {a.strip().upper() for a in os.environ.get("ALLOWED_ASSOCIATIONS", "ALL").split(",")}
 
 
 def gh(path: str):

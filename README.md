@@ -50,6 +50,6 @@ docs/                                     the website (index.html, app.js, style
 
 ## Security notes
 
-- Issue text is untrusted. Claude is told to treat it only as a description of a rule. Only requests from you or your collaborators are processed automatically.
+- Issue text is untrusted. Claude is told to treat it only as a description of a rule. Requests from anyone are processed (ALLOWED_ASSOCIATIONS defaults to ALL in scripts/pending.py; set it to OWNER,MEMBER,COLLABORATOR to restrict).
 - The site renders all rule content as text, never as HTML, so a crafted request can't inject script.
 - Generated queries are drafts. Review and test them before you deploy them to production.
