@@ -24,7 +24,7 @@ If you get an Anthropic API key later, add it as the `ANTHROPIC_API_KEY` secret 
 
 ## Using it
 
-- **Request a rule.** Fill in the form on the site. It opens a pre-filled GitHub issue; press *Create*.
+- **Request a rule.** Fill in the form on the site and click **Copy request & open GitHub**. In the GitHub tab, sign in if asked, paste (Ctrl+V) into the Request box, and press *Create*. A free GitHub account is required.
 - **Get the result.** Within about an hour, Claude comments on the issue with the query, and the rule appears under Rules. Until then it is listed as "In progress".
 - **Revise it.** Comment `/regenerate make it 7-day lookback and exclude service accounts` on the issue. Claude rewrites the rule using the previous query plus your feedback, and the revision number goes up.
 - **Requests from outsiders.** If someone outside your collaborators opens an issue, a maintainer can comment `/regenerate` to run it.

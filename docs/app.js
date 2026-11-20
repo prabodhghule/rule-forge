@@ -16,7 +16,39 @@
   $("#site-title").textContent = cfg.siteTitle;
   if (repoUrl) $("#repo-link").href = repoUrl; else $("#repo-link").hidden = true;
 
-  // ---------- Request form -> pre-filled GitHub issue ----------
+  // ---------- Request form -> copy request + open a short GitHub link ----------
+  // Long pre-filled links break GitHub's sign-in redirect, and GitHub ignores pre-filled
+  // dropdowns, so the request is copied to the clipboard and pasted into a one-box form.
+  const HEADINGS = [
+    ["language", "Query language"],
+    ["data_source", "Data source / dataset"],
+    ["requirement", "Rule requirement"],
+    ["logic", "Logic / conditions"],
+    ["mitre", "MITRE ATT&CK technique"],
+    ["severity", "Expected severity"],
+    ["samples", "Sample logs or field names"],
+  ];
+
+  function requestMarkdown(data) {
+    return HEADINGS.map(([key, label]) => {
+      let v = (data[key] || "").trim() || "_No response_";
+      if (key === "samples" && v !== "_No response_") v = "```\n" + v.replace(/```/g, "'''") + "\n```";
+      return `### ${label}\n\n${v}`;
+    }).join("\n\n");
+  }
+
+  function copyText(text) {
+    // Synchronous copy so it happens inside the click (before the GitHub tab takes focus).
+    const ta = el("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch { ok = false; }
+    ta.remove();
+    return ok;
+  }
+
+  let lastRequest = "";
   $("#request-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const err = $("#form-error");
@@ -27,13 +59,22 @@
     if (!repoUrl) return fail("Repository not configured. Set owner and repo in docs/config.js.");
     if (!data.title.trim() || !data.requirement.trim()) return fail("Add a rule title and a requirement.");
 
-    const params = new URLSearchParams({ template: "rule-request.yml", title: `[Rule] ${data.title.trim()}` });
-    for (const key of ["language", "data_source", "requirement", "logic", "mitre", "severity", "samples"]) {
-      if (data[key] && data[key].trim()) params.set(key, data[key].trim());
-    }
-    const url = `${repoUrl}/issues/new?${params}`;
-    if (url.length > 8000) return fail("The request is too long for a link. Shorten the sample logs, or paste them into the issue after it opens.");
-    window.open(url, "_blank", "noopener");
+    lastRequest = requestMarkdown(data);
+    const copied = copyText(lastRequest);
+    const params = new URLSearchParams({ template: "rule-request-paste.yml", title: `[Rule] ${data.title.trim().slice(0, 120)}` });
+    window.open(`${repoUrl}/issues/new?${params}`, "_blank", "noopener");
+
+    const box = $("#submit-help");
+    $("#copy-status").textContent = copied ? "Your request is copied." : "Copy the text below first (select it and press Ctrl+C).";
+    $("#request-text").value = lastRequest;
+    box.hidden = false;
+    box.scrollIntoView({ block: "nearest" });
+  });
+
+  $("#copy-again").addEventListener("click", () => {
+    const ok = copyText(lastRequest);
+    $("#copy-again").textContent = ok ? "Copied" : "Select the text and press Ctrl+C";
+    setTimeout(() => { $("#copy-again").textContent = "Copy again"; }, 1500);
   });
 
   // ---------- Rules ----------

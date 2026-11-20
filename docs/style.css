@@ -89,3 +89,9 @@ ul { margin: 0; padding-left: 18px; } li { margin: 2px 0; }
   .grid, .cols { grid-template-columns: 1fr; } .span2 { grid-column: auto; }
   .filters { width: 100%; } .filters input { flex: 1; width: auto; } nav a:not(#repo-link) { display: none; }
 }
+.submit-help { margin-top: 18px; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 10px; padding: 14px 18px; font-size: 14px; }
+.submit-help p { margin: 0 0 6px; }
+.submit-help ol { margin: 0 0 8px; padding-left: 20px; }
+.submit-help textarea { width: 100%; margin-top: 8px; }
+.submit-help summary { cursor: pointer; color: var(--muted); }
+.secondary { margin-top: 8px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }

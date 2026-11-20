@@ -1,0 +1,17 @@
+name: Rule request (from the website)
+description: Paste the request that the Rule Forge website copied for you.
+title: "[Rule] "
+labels: ["rule-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **The website already copied your request.** Click in the box below, press **Ctrl+V** (Mac: **Cmd+V**), then click **Create**.
+  - type: textarea
+    id: request
+    attributes:
+      label: Request
+      description: Paste here (Ctrl+V / Cmd+V). Don't change the "###" headings.
+      placeholder: "### Query language ..."
+    validations:
+      required: true

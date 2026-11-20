@@ -25,7 +25,7 @@
       <p>Write what you want to catch and any logic you already have. Claude writes the query, explains it, and publishes it below under <a href="#rules">Rules</a>.</p>
       <ol class="steps">
         <li><b>1</b> Fill in the request</li>
-        <li><b>2</b> Submit it as a GitHub issue</li>
+        <li><b>2</b> Paste it into GitHub</li>
         <li><b>3</b> Claude writes the rule (within about an hour)</li>
         <li><b>4</b> It appears under Rules</li>
       </ol>
@@ -73,10 +73,22 @@
         </div>
         <p id="form-error" class="error" hidden></p>
         <div class="actions">
-          <button type="submit" class="primary">Submit on GitHub →</button>
-          <span class="hint">Opens a pre-filled GitHub issue. Sign in and press <b>Create</b>.</span>
+          <button type="submit" class="primary">Copy request &amp; open GitHub →</button>
+          <span class="hint">You need a free GitHub account. <a id="signin-link" href="https://github.com/login" target="_blank" rel="noopener">Sign in to GitHub</a> first if you aren't already.</span>
         </div>
       </form>
+      <div id="submit-help" class="submit-help" hidden>
+        <p><b id="copy-status">Your request is copied.</b> In the GitHub tab that just opened:</p>
+        <ol>
+          <li>Sign in if GitHub asks you to.</li>
+          <li>Click in the <b>Request</b> box and press <b>Ctrl+V</b> (Mac: <b>Cmd+V</b>).</li>
+          <li>Click <b>Create</b>. Your rule appears under Rules within about an hour (7 AM – midnight IST).</li>
+        </ol>
+        <details><summary>Didn't paste? Copy it again</summary>
+          <button id="copy-again" type="button" class="secondary">Copy again</button>
+          <textarea id="request-text" rows="8" class="mono" readonly></textarea>
+        </details>
+      </div>
     </section>
 
     <section id="rules">
