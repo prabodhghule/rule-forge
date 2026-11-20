@@ -1,0 +1,71 @@
+name: Rule request
+description: Describe a detection rule and Claude will write the query for it.
+title: "[Rule] "
+labels: ["rule-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe what you want to detect. Claude reads this issue, writes the query,
+        and publishes it on the Rules page. Comment `/regenerate <feedback>` to get a revised version.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Query language
+      options:
+        - XQL (Cortex XSIAM / XDR)
+        - KQL (Microsoft Sentinel / Defender)
+        - SPL (Splunk)
+        - Sigma
+        - EQL (Elastic)
+        - YARA-L (Google SecOps)
+        - Other (say which in the requirement)
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: data_source
+    attributes:
+      label: Data source / dataset
+      description: Where the logs live, e.g. xdr_data, Windows Security events, Okta, AWS CloudTrail, Palo Alto firewall
+      placeholder: xdr_data
+  - type: textarea
+    id: requirement
+    attributes:
+      label: Rule requirement
+      description: What should this rule detect, and why?
+      placeholder: Detect PowerShell launched by Office applications (Word, Excel, Outlook) on Windows endpoints.
+    validations:
+      required: true
+  - type: textarea
+    id: logic
+    attributes:
+      label: Logic / conditions (optional)
+      description: Any specific fields, thresholds, time windows, exclusions or correlation logic you already have in mind.
+      placeholder: |
+        - parent process in (winword.exe, excel.exe, outlook.exe)
+        - child process is powershell.exe or pwsh.exe
+        - exclude signed IT automation scripts under C:\IT\
+  - type: input
+    id: mitre
+    attributes:
+      label: MITRE ATT&CK technique (optional)
+      placeholder: T1059.001
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Expected severity
+      options:
+        - Let Claude decide
+        - Informational
+        - Low
+        - Medium
+        - High
+        - Critical
+      default: 0
+  - type: textarea
+    id: samples
+    attributes:
+      label: Sample logs or field names (optional)
+      description: Paste a sanitized sample event so the query uses your real field names. Remove secrets and personal data.
+      render: json

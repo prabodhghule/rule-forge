@@ -1,0 +1,90 @@
+name: Generate rule with Claude
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pages: write
+  id-token: write
+
+# One generation at a time so commits never collide.
+concurrency:
+  group: rule-generation
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: >-
+      contains(github.event.issue.labels.*.name, 'rule-request') &&
+      (github.event_name == 'issues' ||
+       (!github.event.issue.pull_request && startsWith(github.event.comment.body, '/regenerate')))
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.gen.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install "anthropic>=0.40"
+
+      - name: Ask Claude for the rule
+        id: gen
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL }}
+          ALLOWED_ASSOCIATIONS: ${{ vars.ALLOWED_ASSOCIATIONS }}
+          SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+          # Untrusted text is passed through env vars, never interpolated into the shell script.
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association || github.event.issue.author_association }}
+          COMMENT_FILE: ${{ runner.temp }}/comment.md
+        run: python scripts/generate_rule.py
+
+      - name: Commit the rule
+        if: steps.gen.outputs.status == 'generated'
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "rule-forge[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add rules docs/data
+          git commit -m "Rule for issue #${ISSUE_NUMBER}"
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && break
+            sleep 5
+          done
+
+      - name: Comment on the issue
+        if: always() && steps.gen.outputs.status != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          STATUS: ${{ steps.gen.outputs.status }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+          if [ "$STATUS" = "generated" ]; then
+            gh label create rule-generated --color 2ea043 --description "Claude generated a rule" 2>/dev/null || true
+            gh issue edit "$ISSUE_NUMBER" --add-label rule-generated
+          fi
+
+      - name: Fail the run if generation failed
+        if: steps.gen.outputs.status == 'failed'
+        run: exit 1
+
+  deploy:
+    needs: generate
+    if: needs.generate.outputs.status == 'generated'
+    uses: ./.github/workflows/deploy-pages.yml
