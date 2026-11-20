@@ -1,0 +1,70 @@
+{
+  "issue": 1,
+  "issue_url": "https://github.com/prabodhghule/rule-forge/issues/1",
+  "title": "Disbursal API Velocity & Bypassed Workflow Rule",
+  "requested_by": "prabodhghule",
+  "request": {
+    "language": "XQL (Cortex XSIAM / XDR)",
+    "data_source": "not sure",
+    "requirement": "Logic: Monitors payment/disbursal endpoints for >15 invocations in 5 minutes or requests carrying dummy reference numbers.",
+    "logic": "Logic: Monitors payment/disbursal endpoints for >15 invocations in 5 minutes or requests carrying dummy reference numbers.",
+    "mitre": "",
+    "severity": "",
+    "samples": "I don't have any"
+  },
+  "created_at": "2026-11-20T07:04:04+00:00",
+  "updated_at": "2026-11-20T07:04:04+00:00",
+  "revision": 1,
+  "model": "Claude (scheduled task)",
+  "last_feedback": "",
+  "rule": {
+    "rule_name": "Disbursal API velocity or dummy reference number",
+    "summary": "Flags a source IP or user that calls payment or disbursal API endpoints more than 15 times in 5 minutes, or sends a disbursal request with a placeholder reference number (all zeros, 123456, test, dummy, xxxx, null). Both patterns point to scripted abuse, testing in production, or someone pushing payouts outside the normal approval workflow.",
+    "query_language": "XQL",
+    "query": "config case_sensitive = false\n| datamodel dataset = your_api_gateway_raw\n| filter xdm.network.http.url ~= \"(?i)/(disburs|payout|payment|transfer)\"\n| alter is_dummy_ref = if(xdm.network.http.url ~= \"(?i)[?&](ref|ref_no|refno|reference|reference_no|utr|txn_ref|txnref|transaction_ref)=(0+|1+|9+|1234[0-9]*|test[^&]*|dummy[^&]*|x{3,}|na|null|none)(&|$)\", 1, 0)\n| bin _time span = 5m\n| comp count() as call_count, sum(is_dummy_ref) as dummy_ref_count, values(xdm.network.http.url) as sample_urls by _time, xdm.source.ipv4, xdm.source.user.username\n| filter call_count > 15 or dummy_ref_count > 0\n| alter trigger_reason = if(dummy_ref_count > 0 and call_count > 15, \"velocity + dummy reference\", if(dummy_ref_count > 0, \"dummy reference number\", \"velocity > 15 calls / 5 min\"))\n| fields _time, xdm.source.ipv4, xdm.source.user.username, call_count, dummy_ref_count, trigger_reason, sample_urls\n| sort desc call_count",
+    "logic_explanation": [
+      "Queries the Cortex Data Model (XDM) so the rule works with any API gateway, WAF or load-balancer log source that is mapped to XDM. Replace your_api_gateway_raw with your dataset name.",
+      "Keeps only requests whose URL contains a payment or disbursal path (/disburs, /payout, /payment, /transfer).",
+      "Marks a request as is_dummy_ref = 1 when a reference parameter (ref, reference, utr, txn_ref, ...) holds a placeholder value such as 000000, 111111, 999999, 123456..., test, dummy, xxxx, na, null or none.",
+      "Buckets events into 5-minute windows with bin, then counts calls and dummy-reference hits per source IP and user in each window.",
+      "Fires when a source makes more than 15 calls in a window, or sends at least one dummy reference, and labels which condition triggered it."
+    ],
+    "assumptions": [
+      "Data source was not specified. The query assumes your API gateway / WAF logs are ingested and mapped to XDM. Replace your_api_gateway_raw with the real dataset (for example an F5, Kong, Apigee, AWS API Gateway or NGINX *_raw dataset).",
+      "Assumes the full request URL, including the query string, is mapped to xdm.network.http.url. If the reference number is sent in the JSON body instead, point the is_dummy_ref regex at the raw body field (for example your_api_gateway_raw.request_body).",
+      "Endpoint paths (/disburs, /payout, /payment, /transfer) and the reference parameter names are guesses. Replace them with your application's real routes and parameter names.",
+      "The title mentions a bypassed workflow. This version detects it through dummy reference numbers only. A rule that confirms the approval step was skipped (disbursal with no prior /approve call in the same session) needs a join against the approval endpoint. Comment /regenerate with your approval route if you want that version.",
+      "XQL regex uses RE2, so repeated-digit patterns such as 222222 are not matched generically. Only the listed placeholders are caught."
+    ],
+    "false_positives": [
+      "Legitimate batch jobs or reconciliation services that call disbursal APIs in bursts.",
+      "QA or UAT traffic that uses test reference numbers against the production gateway.",
+      "Health checks or monitoring probes that hit payment endpoints.",
+      "Several users behind one NAT or proxy IP, which inflates per-IP counts when the username is empty."
+    ],
+    "tuning": [
+      "Exclude known batch and service accounts and internal scanner IPs with: filter xdm.source.user.username not in (\"svc_batch\", ...).",
+      "Baseline normal peak volume per client for a week, then raise the threshold above 15 if needed.",
+      "Group by an API key or client ID field instead of IP if your logs carry one. It is more accurate behind NAT.",
+      "Add your organisation's own known dummy values (for example REF0000) to the regex."
+    ],
+    "mitre": [
+      {
+        "id": "T1657",
+        "name": "Financial Theft"
+      },
+      {
+        "id": "T1190",
+        "name": "Exploit Public-Facing Application"
+      }
+    ],
+    "severity": "High",
+    "testing": "In a test window, send 16 or more requests to a disbursal endpoint from one test client within 5 minutes, and a single request with ?ref=000000. Run the query over the last hour and confirm both rows appear with the right trigger_reason. To deploy, save it as a correlation rule that runs every 5 minutes over a 5-minute query time frame, with issue suppression on xdm.source.ipv4 and xdm.source.user.username.",
+    "variants": [
+      {
+        "name": "Hunting: top disbursal callers, last 24 hours (run with time frame = 24 hours)",
+        "query": "datamodel dataset = your_api_gateway_raw\n| filter xdm.network.http.url ~= \"(?i)/(disburs|payout|payment|transfer)\"\n| bin _time span = 5m\n| comp count() as call_count by _time, xdm.source.ipv4, xdm.source.user.username\n| comp max(call_count) as peak_5min, sum(call_count) as total_calls by xdm.source.ipv4, xdm.source.user.username\n| sort desc peak_5min\n| limit 50"
+      }
+    ]
+  }
+}
