@@ -3,7 +3,7 @@ name: Deploy website
 on:
   push:
     branches: [main]
-    paths: ["docs/**", "rules/**", "answers/**"]
+    paths: ["docs/**", "rules/**", "answers/**", ".github/workflows/deploy-pages.yml"]
   workflow_dispatch:
   workflow_call:
 
@@ -31,7 +31,7 @@ jobs:
           python-version: "3.12"
       - run: python scripts/build_index.py
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: docs
       - id: deployment
