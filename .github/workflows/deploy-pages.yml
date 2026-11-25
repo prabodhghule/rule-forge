@@ -3,7 +3,7 @@ name: Deploy website
 on:
   push:
     branches: [main]
-    paths: ["docs/**", "rules/**"]
+    paths: ["docs/**", "rules/**", "answers/**"]
   workflow_dispatch:
   workflow_call:
 

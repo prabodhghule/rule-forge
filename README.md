@@ -29,6 +29,15 @@ If you get an Anthropic API key later, add it as the `ANTHROPIC_API_KEY` secret 
 - **Revise it.** Comment `/regenerate make it 7-day lookback and exclude service accounts` on the issue. Claude rewrites the rule using the previous query plus your feedback, and the revision number goes up.
 - **Requests from outsiders.** If someone outside your collaborators opens an issue, a maintainer can comment `/regenerate` to run it.
 
+## Ask Claude (general prompts)
+
+The site also has an **Ask Claude** page (`docs/ask.html`) for any question, not just rules.
+
+- **Ask.** Write a prompt, click **Copy prompt & open GitHub**, paste it into the issue form and press *Create*. The issue is titled `[Ask] …` and labelled `ask-claude`.
+- **Get the answer.** The same hourly scheduled task answers it (see `prompts/ask-task.md`), comments the answer on the issue, adds the `answered` label, and publishes it on the Ask Claude page.
+- **Follow up.** Comment `/followup <your next question>` on the issue. Claude answers with the earlier conversation as context.
+- At most 10 prompts are answered per run (`MAX_ASKS_PER_RUN`). Answers are public and pass the same sensitive-data checks as rules.
+
 ## Make Claude better at your environment
 
 - `prompts/system.md`: Claude's instructions (style, language rules, safety).
@@ -44,8 +53,12 @@ scripts/pending.py                        lists requests that need a rule
 scripts/save_rule.py                      saves a rule, comments, labels
 prompts/scheduled-task.md                 what the scheduled Claude task does
 scripts/generate_rule.py                  API-key mode: issue → Claude API → rule
-scripts/build_index.py                    rules/*.json → docs/data/rules.json
-docs/                                     the website (index.html, app.js, style.css, config.js)
+scripts/build_index.py                    rules/*.json → docs/data/rules.json, answers/*.json → docs/data/answers.json
+scripts/pending_asks.py                   lists Ask Claude prompts that need an answer
+scripts/save_answer.py                    saves an answer, comments, labels
+prompts/ask-task.md                       how the scheduled task answers Ask Claude prompts
+.github/ISSUE_TEMPLATE/ask-claude.yml     the Ask Claude issue form
+docs/                                     the website (index.html + app.js for rules, ask.html + ask.js for Ask Claude)
 ```
 
 ## Security notes

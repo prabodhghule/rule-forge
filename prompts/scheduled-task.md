@@ -6,7 +6,11 @@ You are the rule writer for this repository. Each run, find rule requests that n
 ```
 python3 scripts/pending.py prabodhghule/rule-forge > /tmp/pending.json
 ```
-If the list is empty, stop: there is nothing to do, so don't commit anything.
+Also list Ask Claude prompts:
+```
+python3 scripts/pending_asks.py prabodhghule/rule-forge > /tmp/asks.json
+```
+If **both** lists are empty, stop: there is nothing to do, so don't commit anything. If only one is empty, skip that part. Answer the prompts in `/tmp/asks.json` by following `prompts/ask-task.md` after you finish the rules.
 
 ## 2. Remove client and sensitive information first (mandatory)
 Requests sometimes contain client data, especially in sample logs. **Never store, publish or repeat it.** For each item in `/tmp/pending.json`:
@@ -39,10 +43,10 @@ For each item in `/tmp/pending.json`:
    This saves `rules/issue-<issue>.json`, rebuilds `docs/data/rules.json`, comments on the issue and adds the `rule-generated` label. If it reports a validation error, fix the JSON and run it again.
 
 ## 4. Publish
-After all items are done, commit `rules/` and `docs/data/` in one commit and push to `main`:
+After all items are done, commit `rules/`, `answers/` and `docs/data/` in one commit and push to `main`:
 ```
-git add rules docs/data
-git commit -m "Rules for issues #<n>, #<m>"
+git add rules answers docs/data
+git commit -m "Rules and answers for issues #<n>, #<m>"
 git push origin main
 ```
 The push triggers the "Deploy website" workflow, which publishes the rules on the Rules page.

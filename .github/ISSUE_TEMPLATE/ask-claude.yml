@@ -1,0 +1,20 @@
+name: Ask Claude (from the website)
+description: Paste the prompt that the Rule Forge website copied for you. Claude answers it on the site.
+title: "[Ask] "
+labels: ["ask-claude"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **The website already copied your prompt.** Click in the box below, press **Ctrl+V** (Mac: **Cmd+V**), then click **Create**.
+        Claude answers within about an hour (7 AM – midnight IST) as a comment here and on the website's **Ask Claude** page.
+        Comment `/followup <your next question>` on this issue to continue the conversation.
+
+        ⚠️ This repository is public. Don't include client names, hostnames, URLs, IPs, account numbers or secrets.
+  - type: textarea
+    id: prompt
+    attributes:
+      label: Prompt
+      description: Paste here (Ctrl+V / Cmd+V), or type your question.
+    validations:
+      required: true
